@@ -5,6 +5,7 @@ import json
 import datetime
 import pandas as pd
 import matplotlib.pyplot as plt
+import json
 
 from pprint import pprint
 
@@ -131,6 +132,60 @@ def plot_dataframe(df: 'pd.core.frame.DataFrame', country=str) -> None:
 
     plt.show()
 
+# new DF for list of countries and 3 status - IN PROGRESS
+def get_all_countries_daily_data(countries=list, daily=bool) -> 'pd.core.frame.DataFrame':
+    countries_cases_stats = {
+        'Confirmed Cases': {},
+        'Recovered Cases': {},
+        'Deaths': {}
+    }
+    for country in countries:
+        country_slug = get_list_countries_slugs()[country]
+        countries_cases_stats['Confirmed Cases'][country] = get_daily_country_data_by_status(country_slug, 'confirmed', daily)
+        countries_cases_stats['Recovered Cases'][country] = get_daily_country_data_by_status(country_slug, 'recovered',
+                                                                                             daily)
+        countries_cases_stats['Deaths'][country] = get_daily_country_data_by_status(country_slug, 'deaths',
+                                                                                             daily)
+    #countries_cases_stats = {(outerKey, innerKey): values for outerKey, innerDict in countries_cases_stats.items() for innerKey, values in innerDict.items()}
+
+    df = pd.io.json.json_normalize(countries_cases_stats)
+    #df = pd.DataFrame(countries_cases_stats)
+    #df.columns = df.columns.rename('Country', level=1)
+    #df.columns = df.columns.rename('Status', level=0)
+    #df.index.names = ['Date']
+    #df.index = df.index.strftime('%Y-%m-%d')
+    df.to_csv('file_name1.csv', encoding="utf-8", index=False)
+    return df
+
+def plot_dataframe2(countries=list, daily=bool) -> None:
+    df = get_all_countries_daily_data(countries, daily)
+
+    confirmed_df = df['Confirmed Cases']
+    df['Date'] = df.index
+    recovered_df = df['Recovered Cases']
+    deaths_df = df['Deaths']
+
+
+    print(deaths_df)
+    df.to_csv('file_name.csv', encoding="utf-8", index=False)
+
+    fig, (ax1, ax2, ax3) = plt.subplots(nrows=3, ncols=1)
+
+    for country in confirmed_df.columns.get_level_values('Country'):
+        confirmed_df.plot(kind='line', y=country, ax=ax1)
+
+
+    for country in recovered_df.columns.get_level_values('Country'):
+        recovered_df.plot(kind='line', y=country, ax=ax2)
+
+
+    for country in deaths_df.columns.get_level_values('Country'):
+        deaths_df.plot(kind='line', y=country, ax=ax3)
+
+
+
+
+    plt.show()
 
 """
     # Second way to do it (but xticks/x-labels become overpopulated):
@@ -158,10 +213,33 @@ def plot_dataframe(df: 'pd.core.frame.DataFrame', country=str) -> None:
     plt.show()
 """
 
+def get_all_countries_daily_data2(countries=list, daily=bool) -> 'pd.core.frame.DataFrame':
+    status = ['Confirmed Cases', 'Recovered Cases', 'Deaths']
 
+    countries_cases_stats = {}
+    for country in countries:
+        country_slug = get_list_countries_slugs()[country]
+
+        confirmed = get_daily_country_data_by_status(country_slug, 'confirmed', daily)
+        for date, cases in confirmed.items():
+            new_date = date.strftime("%Y-%m-%d")
+            countries_cases_stats[new_date]['Confirmed Cases'][country] = cases
+
+        recovered = get_daily_country_data_by_status(country_slug, 'recovered', daily)
+        for date, cases in recovered.items():
+            countries_cases_stats[str(date)]['Recovered Cases'][country] = cases
+
+        deaths = get_daily_country_data_by_status(country_slug, 'deaths', daily)
+        for date, cases in deaths.items():
+            countries_cases_stats[str(date)]['Confirmed Cases'][country] = cases
+
+    df = pd.DataFrame(countries_cases_stats)
+    return df
 
 
 if __name__ == "__main__":
+    #plot_dataframe2(['Argentina', 'Germany', 'Spain'], False)
+    pprint(get_all_countries_daily_data2(['Germany', 'France', 'Argentina'], True))
     #plot_dataframe(get_all_country_daily_data('Germany', True), 'Germany')
     #pprint(get_all_country_daily_data('Argentina'))
     #pprint(create_countries_df())
