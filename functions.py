@@ -1,11 +1,11 @@
 from typing import Dict, Any
 
 import requests
-import json
 import datetime
 import pandas as pd
 import matplotlib.pyplot as plt
 import json
+import numpy
 
 from pprint import pprint
 
@@ -91,9 +91,8 @@ def get_daily_country_data_by_status(country=str, status=str, daily=bool) -> dic
                 cases = cases - cases_until_yesterday
                 cases_until_yesterday = cases_until_today
             dict_cases_by_date[date] = cases
-
-
     return dict_cases_by_date
+
 
 def get_all_country_daily_data(country=str, daily=bool):
     country_slug = get_list_countries_slugs()[country]
@@ -132,114 +131,63 @@ def plot_dataframe(df: 'pd.core.frame.DataFrame', country=str) -> None:
 
     plt.show()
 
-# new DF for list of countries and 3 status - IN PROGRESS
-def get_all_countries_daily_data(countries=list, daily=bool) -> 'pd.core.frame.DataFrame':
-    countries_cases_stats = {
-        'Confirmed Cases': {},
-        'Recovered Cases': {},
-        'Deaths': {}
-    }
-    for country in countries:
-        country_slug = get_list_countries_slugs()[country]
-        countries_cases_stats['Confirmed Cases'][country] = get_daily_country_data_by_status(country_slug, 'confirmed', daily)
-        countries_cases_stats['Recovered Cases'][country] = get_daily_country_data_by_status(country_slug, 'recovered',
-                                                                                             daily)
-        countries_cases_stats['Deaths'][country] = get_daily_country_data_by_status(country_slug, 'deaths',
-                                                                                             daily)
-    #countries_cases_stats = {(outerKey, innerKey): values for outerKey, innerDict in countries_cases_stats.items() for innerKey, values in innerDict.items()}
 
-    df = pd.io.json.json_normalize(countries_cases_stats)
-    #df = pd.DataFrame(countries_cases_stats)
-    #df.columns = df.columns.rename('Country', level=1)
-    #df.columns = df.columns.rename('Status', level=0)
-    #df.index.names = ['Date']
-    #df.index = df.index.strftime('%Y-%m-%d')
-    df.to_csv('file_name1.csv', encoding="utf-8", index=False)
+# Added dates range with default 30 days back from yesterday - missing the differentiation between daily and accumulated/total
+def get_all_countries_daily_data(countries=list, daily=bool, last_date=datetime.date.today() - datetime.timedelta(1), days_number=30) -> 'pd.core.frame.DataFrame':
+    first_date = last_date - datetime.timedelta(days_number)
+    status_list = ['confirmed', 'recovered', 'deaths']
+    dates_list = []
+    previous_date = last_date
+    all_data_list =[]
+    countries_slugs = get_list_countries_slugs()
+    for dates in range(days_number, 0, -1):
+        dates_list.append(previous_date.strftime('%Y-%m-%d'))
+        previous_date = previous_date - datetime.timedelta(1)
+    for status in status_list:
+        for country in countries:
+            country_slug = countries_slugs[country]
+            url = f'https://api.covid19api.com/country/{country_slug}/status/{status}?from={first_date}T00:00:00.000Z&to={last_date}T00:00:00.000Z'
+            response = requests.request("GET", url, headers=headers, data=payload)
+            list_res = json.loads(response.content.decode('utf-8'))
+            all_data_list += list_res
+    df = pd.DataFrame(all_data_list).drop(columns=['Lon', 'Lat', 'CountryCode', 'Province', 'City', 'CityCode'])
+
     return df
 
-def plot_dataframe2(countries=list, daily=bool) -> None:
-    df = get_all_countries_daily_data(countries, daily)
 
-    confirmed_df = df['Confirmed Cases']
-    df['Date'] = df.index
-    recovered_df = df['Recovered Cases']
-    deaths_df = df['Deaths']
+# Reshape the dafaframe to be easier to handle for plotting - next: find the good way to create 3 subplots from each status, with multiple lines each, for each country - check also that date works in index
+def plot_dataframe3(countries=list, daily=bool, last_date=datetime.date.today() - datetime.timedelta(1), days_number=30) -> None:
 
+    # Get dataframe from other function for all countries and status
+    df = get_all_countries_daily_data(countries, daily, last_date, days_number)
 
-    print(deaths_df)
-    df.to_csv('file_name.csv', encoding="utf-8", index=False)
+    # splits dataframe in 3 separated by status, get the status name to reference later, adds 2 level indexes
+    df1, df2, df3 = [x for _, x in df.groupby(df['Status'])]
+    cases1_status1 = df1['Status'].values[0]
+    cases1_status2 = df2['Status'].values[0]
+    cases1_status3 = df3['Status'].values[0]
 
-    fig, (ax1, ax2, ax3) = plt.subplots(nrows=3, ncols=1)
+    df1 = df1.drop(columns=['Status'])
+    df2 = df2.drop(columns=['Status'])
+    df3 = df3.drop(columns=['Status'])
 
-    for country in confirmed_df.columns.get_level_values('Country'):
-        confirmed_df.plot(kind='line', y=country, ax=ax1)
+    df1.set_index(['Date', 'Country'], inplace=True)
+    df1.sort_index(inplace=True)
+    df2.set_index(['Date', 'Country'], inplace=True)
+    df2.sort_index(inplace=True)
+    df3.set_index(['Date', 'Country'], inplace=True)
+    df3.sort_index(inplace=True)
 
-
-    for country in recovered_df.columns.get_level_values('Country'):
-        recovered_df.plot(kind='line', y=country, ax=ax2)
-
-
-    for country in deaths_df.columns.get_level_values('Country'):
-        deaths_df.plot(kind='line', y=country, ax=ax3)
-
-
-
+    # Plot
+    df1.unstack().plot(kind='line')
 
     plt.show()
-
-"""
-    # Second way to do it (but xticks/x-labels become overpopulated):
-    
-    plot_title = f'Covid-19 Daily Cases in {country}'
-    plt.subplot(3, 1, 1, title=plot_title)  # (row, column, no. of plots)
-    plt.bar(x, df.sort_index()['Confirmed Cases'], color='#F5B041')
-    plt.ylabel('Confirmed')
-    plt.xticks([], [])
-    plt.grid(axis='y', linestyle='dotted')
-
-    plt.subplot(3, 1, 2)
-    plt.bar(x, df['Recovered Cases'], color='#0eb077')
-    plt.ylabel('Recovered')
-    plt.xticks([], [])
-    plt.grid(axis='y', linestyle='dotted')
-
-    plt.subplot(3, 1, 3)
-    plt.bar(x, df['Deaths'], color='#fc2403')
-    plt.ylabel('Deaths')
-    plt.grid(axis='y', linestyle='dotted')
-
-    plt.xticks(x, df.index, rotation=45, fontsize=8)
-    
-    plt.show()
-"""
-
-def get_all_countries_daily_data2(countries=list, daily=bool) -> 'pd.core.frame.DataFrame':
-    status = ['Confirmed Cases', 'Recovered Cases', 'Deaths']
-
-    countries_cases_stats = {}
-    for country in countries:
-        country_slug = get_list_countries_slugs()[country]
-
-        confirmed = get_daily_country_data_by_status(country_slug, 'confirmed', daily)
-        for date, cases in confirmed.items():
-            new_date = date.strftime("%Y-%m-%d")
-            countries_cases_stats[new_date]['Confirmed Cases'][country] = cases
-
-        recovered = get_daily_country_data_by_status(country_slug, 'recovered', daily)
-        for date, cases in recovered.items():
-            countries_cases_stats[str(date)]['Recovered Cases'][country] = cases
-
-        deaths = get_daily_country_data_by_status(country_slug, 'deaths', daily)
-        for date, cases in deaths.items():
-            countries_cases_stats[str(date)]['Confirmed Cases'][country] = cases
-
-    df = pd.DataFrame(countries_cases_stats)
-    return df
 
 
 if __name__ == "__main__":
-    #plot_dataframe2(['Argentina', 'Germany', 'Spain'], False)
-    pprint(get_all_countries_daily_data2(['Germany', 'France', 'Argentina'], True))
+    plot_dataframe3(['Argentina', 'Germany', 'Spain'], True)
+    #pprint(get_all_countries_daily_data(['Argentina', 'Germany', 'Spain'], True))
     #plot_dataframe(get_all_country_daily_data('Germany', True), 'Germany')
     #pprint(get_all_country_daily_data('Argentina'))
     #pprint(create_countries_df())
+    #pprint(get_list_countries_slugs())
