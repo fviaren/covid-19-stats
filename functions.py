@@ -132,23 +132,38 @@ def plot_dataframe(df: 'pd.core.frame.DataFrame', country=str) -> None:
     plt.show()
 
 
-# Added dates range with default 30 days back from yesterday - missing the differentiation between daily and accumulated/total
+# Determines the number of cases for a particular date - not used for now
+def get_data_indiv_date_country_status(country_slug=str, start_date=datetime, status=str) -> datetime:
+
+    end_of_day = f'{start_date.strftime("%Y-%m-%d")}T23:59:59Z'
+    url = f'https://api.covid19api.com/country/{country_slug}/status/{status}?from={start_date}&to={end_of_day}'
+    response = requests.request("GET", url, headers=headers, data=payload)
+    list_res = json.loads(response.content.decode('utf-8'))
+    return list_res[0]['Cases']
+
+
+# Get all data for dates range, multiple requests, will work in an alternative - good for 3 countries max (err 429, max 10 requests)
 def get_all_countries_daily_data(countries=list, daily=bool, last_date=datetime.date.today() - datetime.timedelta(1), days_number=30) -> 'pd.core.frame.DataFrame':
-    first_date = last_date - datetime.timedelta(days_number)
+    first_date = last_date - datetime.timedelta(days_number + 1)
     status_list = ['confirmed', 'recovered', 'deaths']
-    dates_list = []
-    previous_date = last_date
     all_data_list =[]
     countries_slugs = get_list_countries_slugs()
-    for dates in range(days_number, 0, -1):
-        dates_list.append(previous_date.strftime('%Y-%m-%d'))
-        previous_date = previous_date - datetime.timedelta(1)
     for status in status_list:
         for country in countries:
             country_slug = countries_slugs[country]
             url = f'https://api.covid19api.com/country/{country_slug}/status/{status}?from={first_date}T00:00:00.000Z&to={last_date}T00:00:00.000Z'
             response = requests.request("GET", url, headers=headers, data=payload)
             list_res = json.loads(response.content.decode('utf-8'))
+           # New test
+            if daily:
+                cases_until_yesterday = 0
+                for each in list_res:
+                    cases_until_today = int(each['Cases'])
+                    cases_today = cases_until_today - cases_until_yesterday
+                    each['Cases'] = cases_today
+                    cases_until_yesterday = cases_until_today
+            print(response)
+            list_res.pop(0)
             all_data_list += list_res
     df = pd.DataFrame(all_data_list).drop(columns=['Lon', 'Lat', 'CountryCode', 'Province', 'City', 'CityCode'])
 
@@ -160,34 +175,51 @@ def plot_dataframe3(countries=list, daily=bool, last_date=datetime.date.today() 
 
     # Get dataframe from other function for all countries and status
     df = get_all_countries_daily_data(countries, daily, last_date, days_number)
-
-    # splits dataframe in 3 separated by status, get the status name to reference later, adds 2 level indexes
+    # split dataframe in 3 separated by status
     df1, df2, df3 = [x for _, x in df.groupby(df['Status'])]
-    cases1_status1 = df1['Status'].values[0]
-    cases1_status2 = df2['Status'].values[0]
-    cases1_status3 = df3['Status'].values[0]
 
-    df1 = df1.drop(columns=['Status'])
-    df2 = df2.drop(columns=['Status'])
-    df3 = df3.drop(columns=['Status'])
+    nrow = 3
+    ncol = 1
+    case_status_name = []
+    df_list = [df1, df2, df3]
+    plot_title = f'Covid-19 cases in {", ".join(countries)}: {last_date - datetime.timedelta(days_number)} to {last_date} '
 
-    df1.set_index(['Date', 'Country'], inplace=True)
-    df1.sort_index(inplace=True)
-    df2.set_index(['Date', 'Country'], inplace=True)
-    df2.sort_index(inplace=True)
-    df3.set_index(['Date', 'Country'], inplace=True)
-    df3.sort_index(inplace=True)
+    fig, axes = plt.subplots(nrow, ncol, sharex=True, gridspec_kw={'hspace': 0})
+    fig.suptitle(plot_title)
+    count = 0
+    for row_position in range(nrow):
+        curr_df = df_list[count]
+        # Determine status name for labels
+        case_status_name.append(curr_df['Status'].values[0])
+        # Remove column status
+        curr_df.drop('Status', axis=1, inplace=True)
+        # Set 2 level index
+        curr_df.set_index(['Date', 'Country'], inplace=True)
+        # Plot 3 cases status in 3 rows
+        curr_df.unstack().plot(kind='line', ax=axes[row_position], legend=None)
+        axes[row_position].set(ylabel=case_status_name[row_position])
+        axes[row_position].grid(color='grey', linestyle='dotted')
+        current_handles, current_labels = axes[row_position].get_legend_handles_labels()
+        new_labels = list(map(split_label, current_labels))
 
-    # Plot
-    df1.unstack().plot(kind='line')
+        fig.legend(current_handles, new_labels)
+        count += 1
 
     plt.show()
 
 
+def split_label(label=str):
+    import re
+    new_label = re.sub('[()]', '', label).split(", ")[1]
+    return new_label
+
+# Check data: some countries not working e.g:France, United States of America, United Kingdom
 if __name__ == "__main__":
-    plot_dataframe3(['Argentina', 'Germany', 'Spain'], True)
-    #pprint(get_all_countries_daily_data(['Argentina', 'Germany', 'Spain'], True))
+    #print(split_label('(Cases, Argentina)'))
+    plot_dataframe3(['Germany', 'Spain', 'Peru'], False)
+    #pprint(get_all_countries_daily_data(['Argentina', 'Germany', 'Spain'], False))
     #plot_dataframe(get_all_country_daily_data('Germany', True), 'Germany')
     #pprint(get_all_country_daily_data('Argentina'))
     #pprint(create_countries_df())
     #pprint(get_list_countries_slugs())
+    #pprint(get_data_indiv_date_country_status('germany', '2020-10-17T00:00:00Z','confirmed'))
