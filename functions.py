@@ -5,16 +5,19 @@ import datetime
 import pandas as pd
 import matplotlib.pyplot as plt
 import json
+import os.path
+import re
 import numpy
-
 from pprint import pprint
 
 
 payload = {}
 headers = {}
 
-# 1) All countries data
-def get_countries_summary():
+
+# Get summary of all countries by country by status (total, not by day) - with last day new cases, updated daily
+# Add rates for status based on New/Total cases
+def get_countries_summary() -> dict:
     url = 'https://api.covid19api.com/summary'
     response = requests.request("GET", url, headers=headers, data=payload)
     list_res = json.loads(response.content.decode('utf-8'))['Countries']
@@ -40,7 +43,8 @@ def get_countries_summary():
     return countries_summary
 
 
-def create_countries_df() -> 'pandas.core.frame.DataFrame':
+# Create dataframe with data from summary of all countries
+def create_countries_df(save_df=False) -> 'pandas.core.frame.DataFrame':
     data = get_countries_summary()
     df = pd.DataFrame(data).transpose().sort_values(by=['Total Confirmed Cases'], ascending=False)
     df = df.reset_index().rename(columns={'index': 'Country'})
@@ -48,32 +52,23 @@ def create_countries_df() -> 'pandas.core.frame.DataFrame':
     return df
 
 
-# Save dataframe to a csv and return the file name
-def save_df_to_csv(df: 'pd.core.frame.DataFrame'):
-    today = datetime.date.today().strftime('%d-%m-%Y')
-    file_name = f'Covid-19 Countries-Stats_{today}.csv'
-    df.to_csv(file_name, encoding="utf-8", index=False)
-    return
-
-
-# 2) Data per country daily
-def format_date(date_str=str):
-    # 'Date': '2020-10-25T00:00:00Z'
+# 2) Data per country daily from day 0
+def format_date(date_str=str) -> datetime:
     new_date = datetime.datetime.strptime(date_str[:10], '%Y-%m-%d')
-    #new_date = date1.strftime("%Y-%m-%d")
     return new_date
 
 
-def get_list_countries_slugs() -> dict:
+def get_list_countries_slugs_codes() -> dict:
     url = 'https://api.covid19api.com/countries'
     response = requests.request("GET", url, headers=headers, data=payload)
     list_countries = json.loads(response.content.decode('utf-8'))
     dict_countries = {}
     for each in list_countries:
-        dict_countries[each['Country']] = each['Slug']
+        dict_countries[each['Country']] = [each['Slug'], each['ISO2']]
     return dict_countries
 
 
+# Get country data of 1 country from day 1, by status, return a dict, option for daily or accumulated/total
 def get_daily_country_data_by_status(country=str, status=str, daily=bool) -> dict:
     url = f'https://api.covid19api.com/total/dayone/country/{country}/status/{status}'
     response = requests.request("GET", url, headers=headers, data=payload)
@@ -94,8 +89,9 @@ def get_daily_country_data_by_status(country=str, status=str, daily=bool) -> dic
     return dict_cases_by_date
 
 
+# Create dataframe with 1 country daily data by case status by date
 def get_all_country_daily_data(country=str, daily=bool):
-    country_slug = get_list_countries_slugs()[country]
+    country_slug = get_list_countries_slugs_codes()[country][0]
     country_data = {
         'Confirmed Cases': get_daily_country_data_by_status(country_slug, 'confirmed', daily),
         'Recovered Cases': get_daily_country_data_by_status(country_slug, 'recovered', daily),
@@ -105,10 +101,9 @@ def get_all_country_daily_data(country=str, daily=bool):
     return df
 
 
-def plot_dataframe(df: 'pd.core.frame.DataFrame', country=str) -> None:
-    x = range(len(df.index))
+# Plot dataframe into bar graph (1 country, by status from day 1)
+def plot__country_dataframe(df: 'pd.core.frame.DataFrame', country=str) -> None:
 
-    # test
     fig, (ax1, ax2, ax3) = plt.subplots(nrows=3, ncols=1)
 
     fig.suptitle(f'Covid-19 Daily Cases in {country}')
@@ -132,27 +127,23 @@ def plot_dataframe(df: 'pd.core.frame.DataFrame', country=str) -> None:
     plt.show()
 
 
-# Determines the number of cases for a particular date - not used for now
-def get_data_indiv_date_country_status(country_slug=str, start_date=datetime, status=str) -> datetime:
-
-    end_of_day = f'{start_date.strftime("%Y-%m-%d")}T23:59:59Z'
-    url = f'https://api.covid19api.com/country/{country_slug}/status/{status}?from={start_date}&to={end_of_day}'
-    response = requests.request("GET", url, headers=headers, data=payload)
-    list_res = json.loads(response.content.decode('utf-8'))
-    return list_res[0]['Cases']
-
-
-# Get all data for dates range, multiple requests, will work in an alternative - good for 3 countries max (err 429, max 10 requests)
-def get_all_countries_daily_data(countries=list, daily=bool, last_date=datetime.date.today() - datetime.timedelta(1), days_number=30) -> 'pd.core.frame.DataFrame':
+# Get all data for dates range, multiple requests, will work in an alternative - good for 3 countries max (err 429, max 10 requests) option to save dataframe
+def get_all_countries_daily_data(countries=list, daily=bool, last_date=datetime.date.today() - datetime.timedelta(1), days_number=30, save_df=False) -> 'pd.core.frame.DataFrame':
+    # the date of the day before the requested start date, to be able to get daily numbers later
     first_date = last_date - datetime.timedelta(days_number + 1)
     status_list = ['confirmed', 'recovered', 'deaths']
     all_data_list =[]
-    countries_slugs = get_list_countries_slugs()
+    countries_slugs = get_list_countries_slugs_codes()
     for status in status_list:
         for country in countries:
-            country_slug = countries_slugs[country]
-            url = f'https://api.covid19api.com/country/{country_slug}/status/{status}?from={first_date}T00:00:00.000Z&to={last_date}T00:00:00.000Z'
+            country_slug = countries_slugs[country][0]
+            url = f'https://api.covid19api.com/total/country/{country_slug}/status/{status}?from={first_date}T00:00:00.000Z&to={last_date}T00:00:00.000Z'
             response = requests.request("GET", url, headers=headers, data=payload)
+            try:
+                response.raise_for_status()
+            except requests.exceptions.HTTPError as err:
+                print(f'{str(err)}\nYou most likely have input more than 3 countries, try with 3 or less less to avoid passing the limit of 10 requests per second')
+                raise
             list_res = json.loads(response.content.decode('utf-8'))
            # New test
             if daily:
@@ -162,19 +153,33 @@ def get_all_countries_daily_data(countries=list, daily=bool, last_date=datetime.
                     cases_today = cases_until_today - cases_until_yesterday
                     each['Cases'] = cases_today
                     cases_until_yesterday = cases_until_today
-            print(response)
+            # Delete the first row, a day before the start date requested
             list_res.pop(0)
             all_data_list += list_res
     df = pd.DataFrame(all_data_list).drop(columns=['Lon', 'Lat', 'CountryCode', 'Province', 'City', 'CityCode'])
-
+    # Save df to csv file if argument save_df=True
+    if save_df:
+        countries_abbr_list = []
+        for country in countries:
+            countries_abbr_list.append(countries_slugs[country][1])
+        countries_str = '-'.join(countries_abbr_list)
+        start_date = last_date - datetime.timedelta(days_number)
+        date_range_str = f'{start_date}_{last_date}'
+        # avoid saving over existing file
+        version_count = 1
+        file_name = f'Covid-19 Stats_{countries_str}_{date_range_str}_{str(version_count)}.csv'
+        while os.path.isfile(file_name):
+            version_count += 1
+            file_name = f'Covid-19 Stats_{countries_str}_{date_range_str}_{str(version_count)}.csv'
+        save_to_csv(df, file_name)
     return df
 
 
-# Reshape the dafaframe to be easier to handle for plotting - next: find the good way to create 3 subplots from each status, with multiple lines each, for each country - check also that date works in index
-def plot_dataframe3(countries=list, daily=bool, last_date=datetime.date.today() - datetime.timedelta(1), days_number=30) -> None:
-
+# Plot dataframe for 1-3 countries, 3 line subplots by case status, option of daily or accumulated, daterange possible with default last 30 days, option to save dataframe
+def plot_dataframe3(countries=list, daily=bool, last_date=datetime.date.today() - datetime.timedelta(1), days_number=30, save_df=False) -> None:
     # Get dataframe from other function for all countries and status
-    df = get_all_countries_daily_data(countries, daily, last_date, days_number)
+    df = get_all_countries_daily_data(countries, daily, last_date, days_number, save_df)
+
     # split dataframe in 3 separated by status
     df1, df2, df3 = [x for _, x in df.groupby(df['Status'])]
 
@@ -209,17 +214,22 @@ def plot_dataframe3(countries=list, daily=bool, last_date=datetime.date.today() 
 
 
 def split_label(label=str):
-    import re
     new_label = re.sub('[()]', '', label).split(", ")[1]
     return new_label
 
-# Check data: some countries not working e.g:France, United States of America, United Kingdom
+
+# Save dataframe to a csv
+def save_to_csv(df=pd.core.frame.DataFrame, file_name=str):
+    df.to_csv(file_name, encoding="utf-8", index=False)
+    return
+
+
 if __name__ == "__main__":
     #print(split_label('(Cases, Argentina)'))
-    plot_dataframe3(['Germany', 'Spain', 'Peru'], False)
+    plot_dataframe3(['United States of America', 'France', 'United Kingdom'], daily=True, save_df=True)
     #pprint(get_all_countries_daily_data(['Argentina', 'Germany', 'Spain'], False))
     #plot_dataframe(get_all_country_daily_data('Germany', True), 'Germany')
     #pprint(get_all_country_daily_data('Argentina'))
     #pprint(create_countries_df())
-    #pprint(get_list_countries_slugs())
+    #pprint(get_list_countries_slugs_codes())
     #pprint(get_data_indiv_date_country_status('germany', '2020-10-17T00:00:00Z','confirmed'))
