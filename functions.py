@@ -205,9 +205,12 @@ def plot_dataframe3(countries=list, daily=bool, last_date=datetime.date.today() 
         axes[row_position].set(ylabel=case_status_name[row_position])
         axes[row_position].grid(color='grey', linestyle='dotted')
         current_handles, current_labels = axes[row_position].get_legend_handles_labels()
-        new_labels = list(map(split_label, current_labels))
+        if len(countries) > 1:
+            new_labels = list(map(split_label, current_labels))
+            fig.legend(current_handles, new_labels)
+        else:
+            fig.legend(current_handles, ['Cases'])
 
-        fig.legend(current_handles, new_labels)
         count += 1
 
     plt.show()
@@ -226,7 +229,7 @@ def save_to_csv(df=pd.core.frame.DataFrame, file_name=str):
 
 if __name__ == "__main__":
     #print(split_label('(Cases, Argentina)'))
-    plot_dataframe3(['United States of America', 'France', 'United Kingdom'], daily=True, save_df=True)
+    plot_dataframe3(['United States of America'], daily=True, save_df=True)
     #pprint(get_all_countries_daily_data(['Argentina', 'Germany', 'Spain'], False))
     #plot_dataframe(get_all_country_daily_data('Germany', True), 'Germany')
     #pprint(get_all_country_daily_data('Argentina'))
