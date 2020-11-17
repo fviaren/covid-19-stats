@@ -8,7 +8,9 @@ import json
 import os.path
 import re
 import numpy
-from pprint import pprint
+import getopt
+import sys
+# from pprint import pprint
 
 
 payload = {}
@@ -228,8 +230,15 @@ def save_to_csv(df=pd.core.frame.DataFrame, file_name=str):
 
 
 if __name__ == "__main__":
+    countries = []
+
+    opts, args = getopt.getopt(sys.argv[1:], "c:")
+    for opt, arg in opts:
+        if opt == '-c':
+            countries = arg.split(',')
+
     #print(split_label('(Cases, Argentina)'))
-    plot_dataframe3(['United States of America'], daily=True, save_df=True)
+    plot_dataframe3(countries, daily=True, save_df=True)
     #pprint(get_all_countries_daily_data(['Argentina', 'Germany', 'Spain'], False))
     #plot_dataframe(get_all_country_daily_data('Germany', True), 'Germany')
     #pprint(get_all_country_daily_data('Argentina'))
