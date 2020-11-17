@@ -10,6 +10,7 @@ import re
 import numpy
 import getopt
 import sys
+from utils import *
 # from pprint import pprint
 
 
@@ -53,44 +54,6 @@ def create_countries_df(save_df=False) -> 'pandas.core.frame.DataFrame':
     df.index = df.index + 1
     return df
 
-
-# 2) Data per country daily from day 0
-def format_date(date_str=str) -> datetime:
-    new_date = datetime.datetime.strptime(date_str[:10], '%Y-%m-%d')
-    return new_date
-
-
-def get_list_countries_slugs_codes() -> dict:
-    url = 'https://api.covid19api.com/countries'
-    response = requests.request("GET", url, headers=headers, data=payload)
-    list_countries = json.loads(response.content.decode('utf-8'))
-    dict_countries = {}
-    for each in list_countries:
-        dict_countries[each['Country']] = [each['Slug'], each['ISO2']]
-    return dict_countries
-
-
-# Get country data of 1 country from day 1, by status, return a dict, option for daily or accumulated/total
-def get_daily_country_data_by_status(country=str, status=str, daily=bool) -> dict:
-    url = f'https://api.covid19api.com/total/dayone/country/{country}/status/{status}'
-    response = requests.request("GET", url, headers=headers, data=payload)
-
-    list_res = json.loads(response.content.decode('utf-8'))
-
-    dict_cases_by_date = {}
-    cases_until_yesterday = 0
-    for each in list_res:
-        if type(each) is dict:
-            date = format_date(each['Date'])
-            cases_until_today = int(each['Cases'])
-            cases = cases_until_today
-            if daily:
-                cases = cases - cases_until_yesterday
-                cases_until_yesterday = cases_until_today
-            dict_cases_by_date[date] = cases
-    return dict_cases_by_date
-
-
 # Create dataframe with 1 country daily data by case status by date
 def get_all_country_daily_data(country=str, daily=bool):
     country_slug = get_list_countries_slugs_codes()[country][0]
@@ -101,7 +64,6 @@ def get_all_country_daily_data(country=str, daily=bool):
     }
     df = pd.DataFrame(country_data)
     return df
-
 
 # Plot dataframe into bar graph (1 country, by status from day 1)
 def plot__country_dataframe(df: 'pd.core.frame.DataFrame', country=str) -> None:
@@ -176,7 +138,6 @@ def get_all_countries_daily_data(countries=list, daily=bool, last_date=datetime.
         save_to_csv(df, file_name)
     return df
 
-
 # Plot dataframe for 1-3 countries, 3 line subplots by case status, option of daily or accumulated, daterange possible with default last 30 days, option to save dataframe
 def plot_dataframe3(countries=list, daily=bool, last_date=datetime.date.today() - datetime.timedelta(1), days_number=30, save_df=False) -> None:
     # Get dataframe from other function for all countries and status
@@ -218,15 +179,15 @@ def plot_dataframe3(countries=list, daily=bool, last_date=datetime.date.today() 
     plt.show()
 
 
-def split_label(label=str):
-    new_label = re.sub('[()]', '', label).split(", ")[1]
-    return new_label
+# def plot(countries=list, daily=bool, last_date=datetime.date.today() - datetime.timedelta(1), days_number=30, save_df=False) -> None:)
+#     data = api.get_countries_data(countries, daily, last_date, days_number)
+#     df = dfs.create_data_frame(data, save_df)
+#     plt = plotting.create_plot(df, save_image, ...)
 
-
-# Save dataframe to a csv
-def save_to_csv(df=pd.core.frame.DataFrame, file_name=str):
-    df.to_csv(file_name, encoding="utf-8", index=False)
-    return
+#     if (save_image):
+#         plt.save_image()
+#     else:
+#         plt.show()
 
 
 if __name__ == "__main__":
