@@ -6,13 +6,9 @@ import os.path
 
 from data import *
 
-
-payload = {}
-headers = {}
-
 # 2) Data per country daily from day 0
-def format_date(date_str=str) -> datetime:
-    new_date = datetime.datetime.strptime(date_str[:10], "%Y-%m-%d")
+def format_date_str(date_str=str) -> datetime:
+    new_date = datetime.datetime.strptime(date_str[:10], "%Y-%m-%d").date()
     return new_date
 
 

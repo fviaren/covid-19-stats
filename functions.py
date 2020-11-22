@@ -41,7 +41,7 @@ def compare_countries_df(
     days_number=30,
     save_df=False,
 ) -> "pandas.core.frame.DataFrame":
-    """This function returns a dataframe to compare (or see) covid stats form 1-3 countries. The dataframe is pivoted for better visibility and analysis. The function takes 5 arguments: "countries" that is mandatory and takes a list of 1-3 country ISO2 codes; and 4 optional arguments with defaulta values. "daily" a boolean set by default to False to define if the data wanted is by day or accumulated/total; "last_date" a datetime value that can be input in format "%Y-%m-%d" such as "2020-11-18" set as default to the day before the current date; "days_number" an integer that determined the number of days for which data is required, set by default to 30; and "save_df" a boolean to tell the function if dataframe should be saved or not, set by default to False."""
+    """This function returns a dataframe to compare (or see) covid stats form  1 or multiple countries. The dataframe is pivoted for better visibility and analysis. The function takes 5 arguments: "countries" that is mandatory and takes a list of 1-3 country ISO2 codes; and 4 optional arguments with defaulta values. "daily" a boolean set by default to False to define if the data wanted is by day or accumulated/total; "last_date" a datetime value that can be input in format "%Y-%m-%d" such as "2020-11-18" set as default to the day before the current date; "days_number" an integer that determined the number of days for which data is required, set by default to 30; and "save_df" a boolean to tell the function if dataframe should be saved or not, set by default to False."""
     data = get_select_countries_daily_data(
         countries, daily, last_date, days_number
     )
@@ -62,7 +62,12 @@ def plot(
     save_df=False,
     save_img=False,
 ) -> None:
-    """This function creates a dataframe to compare compare (or see) covid stats form 1-3 countries, and the plots the data into 3 subplots, une per case status. The function takes 6 arguments: "countries" that is mandatory and takes a list of 1-3 country ISO2 codes (if the list has 1 country the plot will be of kind "bar", if there are more than 1 coutnry the plot kind will be "line"); and 5 optional arguments with defaulta values. "daily" a boolean set by default to False to define if the data wanted is by day or accumulated/total; "last_date" a datetime value that can be input in format "%Y-%m-%d" such as "2020-11-18" set as default to the day before the current date; "days_number" an integer that determined the number of days for which data is required, set by default to 30; "save_df" a boolean to tell the function if the dataframe should be saved or not, set by default to False (if True the dataframe is pivoted for better visibility and analysis and then saved). ; "save_img" a boolean to tell the function if the plot should be saved as a png file or not (and show it instead), set by default to False."""
+    """This function creates a dataframe to compare compare (or see) covid stats form 1 or multiple countries, and the plots the data into 3 subplots, une per case status. The function takes 6 arguments: "countries" that is mandatory and takes a list of 1-3 country ISO2 codes (if the list has 1 country the plot will be of kind "bar", if there are more than 1 coutnry the plot kind will be "line"); and 5 optional arguments with defaulta values. "daily" a boolean set by default to False to define if the data wanted is by day or accumulated/total; "last_date" a datetime value that can be input in format "%Y-%m-%d" such as "2020-11-18" set as default to the day before the current date; "days_number" an integer that determined the number of days for which data is required, set by default to 30; "save_df" a boolean to tell the function if the dataframe should be saved or not, set by default to False (if True the dataframe is pivoted for better visibility and analysis and then saved). ; "save_img" a boolean to tell the function if the plot should be saved as a png file or not (and show it instead), set by default to False."""
+    if last_date != datetime.date.today() - datetime.timedelta(1):
+        print(type(last_date))
+        last_date = format_date_str(last_date)
+        print(type(last_date))
+    print(last_date)
     data = get_select_countries_daily_data(
         countries, daily, last_date, days_number
     )
@@ -97,9 +102,11 @@ if __name__ == "__main__":
         if opt == "-c":
             countries = arg.split(",")
 
-    # plot(countries, daily=True, save_df=True, save_img=False)
-    print(
-        compare_countries_df(
-            countries, days_number=50, daily=True, save_df=True
-        )
-    )
+    #plot(countries, daily=True, save_df=True, save_img=False)
+    plot(countries, daily=True, last_date='2020-10-31', days_number=60, save_df=True)
+    #print(
+    #    plot(
+    #        countries, days_number=50, daily=True, save_df=True
+    #    )
+    #)
+    #print(summary_df(True))

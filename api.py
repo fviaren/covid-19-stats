@@ -1,6 +1,9 @@
 import requests
 import json
 import re
+import time
+import calendar
+from datetime import timedelta
 from utils import *
 
 
@@ -22,14 +25,14 @@ def build_api_url(
 
 
 def get_api_data(url) -> list:
-    """This function performs a request to the covid19api and returns a list of data based on the url provided. If too many requests are made, this function will raise an exception for error 429 as this API allows to make maximum 10 requests per second"""
+    """This function performs a request to the covid19api and returns a list of data based on the url provided. The API allows to make maximum 10 requests per second. In case of error 429 (too many requests), a delay of 3 seconds will be applied and the request will be sent again."""
     response = requests.request("GET", url, headers=headers, data=payload)
     try:
         response.raise_for_status()
     except requests.exceptions.HTTPError as err:
-        print(
-            f"{str(err)}\nYou most likely have input more than 3 countries, try with 3 or less less to avoid passing the limit of 10 requests per second"
-        )
-        raise
+        wait_time = 3
+        print(f"{str(err)}\nYou most likely have input more than 3 countries and have passed the limit of 10 requests per second. The request wil be sent again in {wait_time} seconds")
+        time.sleep(wait_time)
+        response = requests.request("GET", url, headers=headers, data=payload)
     list_res = json.loads(response.content.decode("utf-8"))
     return list_res
