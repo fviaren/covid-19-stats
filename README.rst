@@ -12,6 +12,43 @@ Features
 
 This is a learning and **showcase project** that I developed as part of my **learning process**, with a relevant subject as of today.
 
+Development
+-----------
+.. role:: console(code)
+   :language: console
+
+To develop this app locally:
+
+1. Make sure you are using python3. If not sure run check running the command :console:`python --version`
+
+2. Install pipenv for package management and virtual environment (see how to install `here`_)
+
+    .. _here: https://pipenv.pypa.io/en/latest/#install-pipenv-today
+
+.. code-block:: console
+
+    $ pip install pipenv
+
+4. Clone this repository
+
+.. code-block:: console
+
+    $ git clone https://github.com/fviaren/covid-19-stats
+
+5. Install dependencies
+
+.. code-block:: console
+
+    $ pipenv install
+
+6. Activate pipenv shell
+
+.. code-block:: console
+
+    $ pipenv shell
+
+Happy coding!
+
 Functions
 -----------------
 The functions are divided into **separate files** or modules for better efficiency and to follow best practices. An _interface_ functions.py file contains **3 main functions** that will use support functions from other files.
@@ -50,12 +87,12 @@ The functions are divided into **separate files** or modules for better efficien
 
 @@plot:@@
 """""""""
-    This function creates a dataframe to compare compare (or see) covid stats form 1-3 countries, and the plots the data into 3 subplots, une per case status.<br>
+    This function creates a dataframe to compare (or see) Covid-19 stats form 1 or more countries, and the plots the data into 3 subplots, one per case status.
 
     The function accepts 6 arguments:
      1. **countries:** mandatory, a list of country ISO2 codes as strings (if the list has 1 country the plot will be of kind "bar", if there are more than 1 country the plot kind will be "line");
 
-    and 5 optional arguments with defaulta values;
+    and 5 optional arguments with default values;
 
      2. **daily:** a *boolean* set by default to False to define if the data wanted is by day or accumulated/total;
 
