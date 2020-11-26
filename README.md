@@ -18,7 +18,7 @@ To develop this app locally:
 
 1. Make sure you are using python3. If not sure run check running the command 
 ```console
-`python --version`
+$ python --version
 ```
 
 2. Install pipenv for package management and virtual environment (see how to install [here](https://pipenv.pypa.io/en/latest/#install-pipenv-today)
@@ -134,13 +134,14 @@ Require argument:
 
 If there is an error witht he options and arguments passed, an exception is raised and the error will be printed. E.g.: `option -l requires argument`, or `option -m not recognized`
 
-If no options are passed, the summary_df() function will be called-
+If no options are passed, the summary_df() function will be called.
 
-If `-p` is not passed, and countries are passed in `-c`, the compare_countries_df() function will be called
+If `-p` is not passed, and countries are passed in `-c`, the compare_countries_df() function will be called.
 
-If `-d`, `-s`, `i`, `-l` or `-n` are not passed, the default values will be used
+If `-d`, `-s`, `i`, `-l` or `-n` are not passed, the default values will be used.
 
-Here some examples to call the program (same examples as in *As a library* section)
+Here some examples to call the program (same examples as in *As a library* section):
+
 #### Example 1
 ```console
 > python covid_19_stats.py
@@ -265,3 +266,4 @@ TODO
     - [ ] Modify xaxis ticks date format & frequency
 - [ ] Cache data every x period of time
 - [ ] Add directory argument to save file
+- [ ] Specify dimensions of plot to save to png
