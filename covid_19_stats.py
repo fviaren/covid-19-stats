@@ -11,11 +11,7 @@ from data import *
 from dataframes import *
 from plot import *
 
-# from pprint import pprint
 
-# url = build_api_url(request_type='summary', country_slug, status, date_range)
-
-# 1) Get summary of all countries by country by status (total, not by day) - with last day new cases
 def summary_df(save_df=False) -> "pandas.core.frame.DataFrame":
     """
     Returns a dataframe with summary data of COVID-19 cases.
@@ -42,13 +38,13 @@ def summary_df(save_df=False) -> "pandas.core.frame.DataFrame":
             version_count += 1
             file_name = f"Covid-19 Summary_{today}_{str(version_count)}"
         save_to_csv(df, file_name)
+    pd.set_option('display.max_rows', None)
     return df
 
 
-# 2) Create dataframe for 1-3 countries with daily data for a specific date range
 def compare_countries_df(
     countries=list,
-    daily=bool,
+    daily=False,
     last_date=datetime.date.today() - datetime.timedelta(1),
     days_number=30,
     save_df=False,
@@ -87,13 +83,13 @@ def compare_countries_df(
     if save_df:
         file_name = set_filename(countries, last_date, days_number)
         save_to_csv(pivoted, file_name)
+    pd.set_option('display.max_rows', None)
     return pivoted
 
 
-# 3) Plot dataframe for 1-3 countries, 3 line subplots by case status, option of daily or accumulated, daterange possible with default last 30 days, option to save dataframe
-def plot(
+def plot_covid_stats(
     countries=list,
-    daily=bool,
+    daily=False,
     last_date=datetime.date.today() - datetime.timedelta(1),
     days_number=30,
     save_df=False,
@@ -131,7 +127,8 @@ def plot(
     added request of 3 seconds every 3 new countries)
     """
     if last_date != datetime.date.today() - datetime.timedelta(1):
-        last_date = format_date_str(last_date)
+        if type(last_date) is str:
+            last_date = format_date_str(last_date)
     data = get_select_countries_daily_data(
         countries, daily, last_date, days_number
     )
@@ -160,10 +157,40 @@ def plot(
 
 if __name__ == "__main__":
     countries = []
+    last_date = datetime.date.today() - datetime.timedelta(1)
+    days_number = 30
+    plot_df = False
+    summary = True
+    daily = False
+    save_df = False
+    save_img = False
 
-    opts, args = getopt.getopt(sys.argv[1:], "c:")
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "c:l:n:pdsi")
+    except getopt.GetoptError as err:
+        print(err)
+        sys.exit(2)
     for opt, arg in opts:
         if opt == "-c":
             countries = arg.split(",")
+            summary = False
+        elif opt == "-l":
+            last_date = format_date_str(arg)
+        elif opt == "-n":
+            days_number = int(arg)
+        elif opt == "-d":
+            daily = True
+        elif opt == "-s":
+            save_df = True
+        elif opt == "-p":
+            plot_df = True
+        elif opt == "-i":
+            save_img = True
+    if summary:
+        print(summary_df(save_df))
+    elif plot_df:
+        print(plot_covid_stats(countries, daily, last_date, days_number, save_df, save_img))
+    else:
+        print(compare_countries_df(countries, daily, last_date, days_number, save_df))
 
-    plot(countries, daily=True, save_df=True, save_img=False)
+

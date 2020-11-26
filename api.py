@@ -31,7 +31,7 @@ def get_api_data(url) -> list:
         response.raise_for_status()
     except requests.exceptions.HTTPError as err:
         wait_time = 3
-        print(f"{str(err)}\nYou most likely have input more than 3 countries and have passed the limit of 10 requests per second. The request wil be sent again in {wait_time} seconds")
+        print(f"{str(err)}\nToo many requests, rate limit reached. The request will be sent again in {wait_time} seconds")
         time.sleep(wait_time)
         response = requests.request("GET", url, headers=headers, data=payload)
     list_res = json.loads(response.content.decode("utf-8"))
